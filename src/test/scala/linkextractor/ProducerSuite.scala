@@ -1,6 +1,6 @@
 package linkextractor
 
-import linkextractor.model.FetchResult
+import linkextractor.model.{FetchResult, ItemQueue}
 import java.util.concurrent.LinkedBlockingQueue
 
 // ---------------------------------------------------------------------------
@@ -14,9 +14,15 @@ import java.util.concurrent.LinkedBlockingQueue
 
 class ProducerSuite extends munit.FunSuite:
 
+  // Helper: create an ItemQueue backed by LinkedBlockingQueue for testing.
+  // We keep a reference to the underlying queue so we can poll() in assertions.
+  private def makeQueue(capacity: Int = 10) =
+    val underlying = LinkedBlockingQueue[Option[FetchResult]](capacity)
+    (ItemQueue.fromBlockingQueue(underlying), underlying)
+
   // --- Happy path: each URL produces a queue entry, followed by poison pill ---
   test("puts fetched results on queue and signals done with None") {
-    val queue = LinkedBlockingQueue[Option[FetchResult]](10)
+    val (queue, underlying) = makeQueue()
 
     // Stub fetcher: returns canned HTML containing the URL, no network needed
     val stubFetcher = new HttpFetcher():
@@ -27,9 +33,9 @@ class ProducerSuite extends munit.FunSuite:
     producer.run()
 
     // Should have 2 results + 1 poison pill = 3 items total
-    val item1 = queue.poll()
-    val item2 = queue.poll()
-    val item3 = queue.poll()
+    val item1 = underlying.poll()
+    val item2 = underlying.poll()
+    val item3 = underlying.poll()
 
     assert(item1.isDefined, "First item should be Some(FetchResult)")
     assert(item2.isDefined, "Second item should be Some(FetchResult)")
@@ -40,7 +46,7 @@ class ProducerSuite extends munit.FunSuite:
   // This is critical (R8): a bad URL must not crash the producer or leave
   // the consumer hanging forever waiting for None.
   test("signals done even when all fetches fail") {
-    val queue = LinkedBlockingQueue[Option[FetchResult]](10)
+    val (queue, underlying) = makeQueue()
 
     val failingFetcher = new HttpFetcher():
       override def fetch(url: String): FetchResult =
@@ -50,16 +56,16 @@ class ProducerSuite extends munit.FunSuite:
     producer.run()
 
     // Only the poison pill should be on the queue — no results
-    assertEquals(queue.poll(), None, "Should have poison pill even when all fetches fail")
+    assertEquals(underlying.poll(), None, "Should have poison pill even when all fetches fail")
   }
 
   // --- Edge case: empty URL list ---
   // Producer should immediately signal done without errors.
   test("signals done immediately for empty URL list") {
-    val queue = LinkedBlockingQueue[Option[FetchResult]](10)
+    val (queue, underlying) = makeQueue()
 
     val producer = Producer(List.empty, queue, HttpFetcher())
     producer.run()
 
-    assertEquals(queue.poll(), None, "Empty URL list should produce only poison pill")
+    assertEquals(underlying.poll(), None, "Empty URL list should produce only poison pill")
   }

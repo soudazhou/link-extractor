@@ -1,6 +1,6 @@
 package linkextractor
 
-import linkextractor.model.{ExtractedLinks, FetchResult}
+import linkextractor.model.{ExtractedLinks, FetchResult, ItemQueue}
 import java.util.concurrent.LinkedBlockingQueue
 
 // ---------------------------------------------------------------------------
@@ -19,7 +19,9 @@ import java.util.concurrent.LinkedBlockingQueue
 class IntegrationSuite extends munit.FunSuite:
 
   test("full pipeline: producer -> queue -> consumer") {
-    val queue = LinkedBlockingQueue[Option[FetchResult]](10)
+    val queue = ItemQueue.fromBlockingQueue(
+      LinkedBlockingQueue[Option[FetchResult]](10)
+    )
 
     // Stub fetcher: each URL gets HTML with two predictable links
     val stubFetcher = new HttpFetcher():

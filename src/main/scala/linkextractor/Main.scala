@@ -1,6 +1,6 @@
 package linkextractor
 
-import linkextractor.model.FetchResult
+import linkextractor.model.{FetchResult, ItemQueue}
 import java.util.concurrent.LinkedBlockingQueue
 import scala.io.Source
 
@@ -30,16 +30,27 @@ import scala.io.Source
 //   the full HTML string, so 50 pages at ~100KB each ≈ 5MB — acceptable.
 //   See: docs/DECISIONS.md (D5)
 //
+// Queue strategy (--drop-oldest):
+//   Default: LinkedBlockingQueue — producer blocks when full (backpressure).
+//   With --drop-oldest: BoundedDroppingQueue — drops oldest entry, producer
+//   never blocks. See docs/DECISIONS.md (D5, D6).
+//
 // See: src/main/scala/linkextractor/SPEC.md (Data Flow, Threading Model)
 // ---------------------------------------------------------------------------
 
 @main def linkExtractor(args: String*): Unit =
+  val argList = args.toList
+
+  // --- Parse flags ---
+  val dropOldest = argList.contains("--drop-oldest")
+  val remainingArgs = argList.filterNot(_ == "--drop-oldest")
+
   // --- Parse CLI arguments ---
   // Two modes:
   //   1. --file <path>  : read URLs from a file (one per line, # comments, blank lines ignored)
   //   2. url1 url2 ...  : URLs as positional arguments
-  val urls = if args.nonEmpty && args.head == "--file" && args.length > 1 then
-    val filePath = args(1)
+  val urls = if remainingArgs.nonEmpty && remainingArgs.head == "--file" && remainingArgs.length > 1 then
+    val filePath = remainingArgs(1)
     val source = Source.fromFile(filePath)
     try
       source.getLines()
@@ -48,17 +59,25 @@ import scala.io.Source
         .filter(!_.startsWith("#"))  // skip comment lines
         .toList
     finally source.close()  // always close the file handle
-  else if args.nonEmpty then
-    args.toList
+  else if remainingArgs.nonEmpty then
+    remainingArgs
   else
-    System.err.println("Usage: link-extractor [--file urls.txt | url1 url2 ...]")
+    System.err.println("Usage: link-extractor [--drop-oldest] [--file urls.txt | url1 url2 ...]")
     sys.exit(1)
 
   println(s"Processing ${urls.size} URL(s)...\n")
 
   // --- Wire components ---
+  // Queue strategy depends on --drop-oldest flag.
+  // Both are bounded to the same capacity; they differ in overflow behaviour.
   val queueCapacity = 50
-  val queue = LinkedBlockingQueue[Option[FetchResult]](queueCapacity)
+  val queue: ItemQueue[Option[FetchResult]] =
+    if dropOldest then
+      println("[Using drop-oldest queue strategy]\n")
+      ItemQueue.fromDroppingQueue(BoundedDroppingQueue[Option[FetchResult]](queueCapacity))
+    else
+      ItemQueue.fromBlockingQueue(LinkedBlockingQueue[Option[FetchResult]](queueCapacity))
+
   val fetcher = HttpFetcher()
   val parser = HtmlParser()
   val producer = Producer(urls, queue, fetcher, concurrency = 4)
