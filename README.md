@@ -9,14 +9,22 @@ hyperlinks. Built in Scala 3 as a take-home technical assessment.
 
 *By Wenxuan Zhou*
 
-I have approximately 10 years of Java experience but no prior Scala experience.
-I chose to approach this task in Scala intentionally — to demonstrate learning
-agility, transferable JVM knowledge, and comfort picking up new languages quickly.
+Fair warning: I have roughly 10 years of Java experience but this is my first
+Scala project. If you ask me to explain the finer points of implicits or type-level
+programming, I'll probably pivot the conversation to `BlockingQueue` internals
+instead. That said, the design principles — concurrency, error isolation, clean
+separation of concerns, testability — are the same ones I'd apply in Java. The
+language is new; the engineering thinking is not.
+
+I chose Scala intentionally for this task to demonstrate that picking up a new
+JVM language is a matter of syntax, not fundamentals. You'll find the code is
+heavily commented — partly to show my reasoning, partly because that's how I
+learn: by writing down *why* something works the way it does.
 
 The project was built using **spec-driven development with Claude Code**: all
 specification documents were written first (see `docs/`), then implementation
-followed to satisfy them. Every source file is heavily commented, explaining not
-just *what* it does but *why* and what alternatives were considered.
+followed to satisfy them. Think of it as TDD, but for architecture — the specs
+are the "tests" that the code must pass.
 
 ### Git History
 
@@ -52,7 +60,7 @@ live run evidence below.
 
 - [x] URLs fetched concurrently (bounded thread pool, default 4)
 - [x] Trimming oldest queue entries if queue size balloons (`--drop-oldest`)
-- [x] Comprehensive test coverage (15 tests across 5 suites)
+- [x] Comprehensive test coverage (17 tests across 6 suites, including E2E with real HTTP)
 
 ---
 
@@ -145,7 +153,7 @@ CLI args / urls.txt
 
 ## Test Evidence
 
-### All 15 tests pass (clean build)
+### All 17 tests pass (clean build)
 
 ```
 sbt clean test
@@ -170,19 +178,23 @@ linkextractor.ProducerSuite:
   + puts fetched results on queue and signals done with None
   + signals done even when all fetches fail
   + signals done immediately for empty URL list
+linkextractor.EndToEndSuite:
+  + fetches real URLs and extracts links end-to-end
+  + error isolation with real HTTP — bad URL doesn't affect good ones
 
-Passed: Total 15, Failed 0, Errors 0, Passed 15
+Passed: Total 17, Failed 0, Errors 0, Passed 17
 ```
 
 ### Test breakdown by suite
 
-| Suite | Tests | What It Proves |
-|-------|-------|----------------|
-| HtmlParserSuite | 6 | Link extraction, relative URL resolution, malformed HTML |
-| ProducerSuite | 3 | Queue population, error isolation, empty list |
-| ConsumerSuite | 2 | Full consumption, error isolation on bad parse |
-| BoundedDroppingQueueSuite | 3 | Drop-oldest overflow, under-capacity, multiple overflows |
-| IntegrationSuite | 1 | End-to-end pipeline with concurrent threads |
+| Suite | Tests | Category | What It Proves |
+|-------|-------|----------|----------------|
+| HtmlParserSuite | 6 | Unit | Link extraction, relative URL resolution, malformed HTML |
+| ProducerSuite | 3 | Unit | Queue population, error isolation, empty list |
+| ConsumerSuite | 2 | Unit | Full consumption, error isolation on bad parse |
+| BoundedDroppingQueueSuite | 3 | Unit | Drop-oldest overflow, under-capacity, multiple overflows |
+| IntegrationSuite | 1 | Integration | Full pipeline with stubbed HTTP and concurrent threads |
+| EndToEndSuite | 2 | E2E | Real HTTP requests to example.com, real error isolation |
 
 ### Live run — error isolation demo
 
