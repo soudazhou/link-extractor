@@ -14,11 +14,14 @@ method override or function injection.
 | `ConsumerSuite` | Queue consumption, error isolation | `HtmlParser.extractLinks()` overridden to throw on first call |
 | `BoundedDroppingQueueSuite` | Drop-oldest behaviour, normal operation | None needed — tests the queue directly |
 | `IntegrationSuite` | Full producer → queue → consumer pipeline | `HttpFetcher.fetch()` overridden with canned HTML |
+| `EndToEndSuite` | Full pipeline with real HTTP requests | None — real `HttpFetcher`, real network |
 
 ## Design Principles
 
-- **No network access**: All HTTP is stubbed. Tests run offline and fast.
+- **Unit tests run offline**: HTTP is stubbed. Fast and deterministic.
+- **E2E tests hit real URLs**: `EndToEndSuite` fetches `example.com` (IANA-maintained,
+  always available) to prove the system works with real HTTP, DNS, and HTML.
 - **No stdout capture**: Consumer output is captured via an injectable function.
-- **Deterministic**: No timing dependencies. Queues are pre-populated for consumer
-  tests. Producer tests use synchronous stubs.
+- **Deterministic**: No timing dependencies in unit tests. Queues are pre-populated
+  for consumer tests. Producer tests use synchronous stubs.
 - **Isolated**: Each test creates its own queue, producer, and consumer instances.

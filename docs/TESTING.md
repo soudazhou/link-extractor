@@ -26,6 +26,15 @@ Test the full pipeline with stubbed HTTP.
 |-------|-------|-------|----------------|
 | `IntegrationSuite` | Producer → Queue → Consumer | 1 | End-to-end data flow, concurrent execution, correct output |
 
+### End-to-End Tests
+
+Test the full pipeline with **real HTTP requests** to verify the product works in a
+realistic environment — real DNS, real connections, real HTML.
+
+| Suite | Scope | Tests | What It Proves |
+|-------|-------|-------|----------------|
+| `EndToEndSuite` | Full system with real HTTP | 2 | Real URL fetching (example.com), error isolation with real failures |
+
 ## Stubbing Strategy
 
 `HttpFetcher.fetch()` is an instance method that can be overridden in tests:
@@ -53,7 +62,7 @@ sbt "testOnly linkextractor.HtmlParserSuite"
 
 ## Test Evidence
 
-All 15 tests pass on clean build (`sbt clean test`):
+All 17 tests pass on clean build (`sbt clean test`):
 
 ```
 linkextractor.BoundedDroppingQueueSuite:
@@ -76,6 +85,9 @@ linkextractor.ProducerSuite:
   + puts fetched results on queue and signals done with None
   + signals done even when all fetches fail
   + signals done immediately for empty URL list
+linkextractor.EndToEndSuite:
+  + fetches real URLs and extracts links end-to-end
+  + error isolation with real HTTP — bad URL doesn't affect good ones
 
-Passed: Total 15, Failed 0, Errors 0, Passed 15
+Passed: Total 17, Failed 0, Errors 0, Passed 17
 ```
