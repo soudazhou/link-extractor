@@ -16,7 +16,7 @@ Test each component in isolation with known inputs.
 | `HtmlParserSuite` | HtmlParser | 6 | Correct link extraction, relative URL resolution, malformed HTML handling |
 | `ProducerSuite` | Producer | 3 | Queue population, error isolation, empty list handling |
 | `ConsumerSuite` | Consumer | 2 | Full queue consumption, error isolation on bad parse |
-| `BoundedDroppingQueueSuite` | BoundedDroppingQueue | 2 | Oldest-drop behaviour, normal operation under capacity |
+| `BoundedDroppingQueueSuite` | BoundedDroppingQueue | 3 | Oldest-drop behaviour, multiple overflows, normal operation |
 
 ### Integration Tests
 
@@ -53,4 +53,29 @@ sbt "testOnly linkextractor.HtmlParserSuite"
 
 ## Test Evidence
 
-*To be filled after implementation. Will include `sbt test` output and sample run.*
+All 15 tests pass on clean build (`sbt clean test`):
+
+```
+linkextractor.BoundedDroppingQueueSuite:
+  + drops oldest entry when capacity is exceeded
+  + works normally when under capacity
+  + handles multiple overflows correctly
+linkextractor.ConsumerSuite:
+  + processes all items and stops on None
+  + continues processing after a parse error
+linkextractor.HtmlParserSuite:
+  + extracts absolute links from HTML
+  + resolves relative links against base URL
+  + handles HTML with no links
+  + handles malformed HTML gracefully
+  + resolves empty href to base URL
+  + preserves source URL in result
+linkextractor.IntegrationSuite:
+  + full pipeline: producer -> queue -> consumer
+linkextractor.ProducerSuite:
+  + puts fetched results on queue and signals done with None
+  + signals done even when all fetches fail
+  + signals done immediately for empty URL list
+
+Passed: Total 15, Failed 0, Errors 0, Passed 15
+```

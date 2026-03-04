@@ -33,3 +33,15 @@ identifies which page the links came from. All links are absolute URLs.
   `toString`, and pattern matching for free.
 - **No Option fields**: Every field is always present. The queue uses `Option[FetchResult]`
   at the transport layer (for the poison pill), not in the domain types themselves.
+
+### ItemQueue
+
+```scala
+trait ItemQueue[A]:
+  def put(item: A): Unit
+  def take(): A
+```
+
+Minimal abstraction over the queue so Producer and Consumer work with either
+`LinkedBlockingQueue` (backpressure) or `BoundedDroppingQueue` (drop-oldest).
+Companion object provides `fromBlockingQueue` and `fromDroppingQueue` factory methods.
