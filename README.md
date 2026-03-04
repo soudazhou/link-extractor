@@ -199,6 +199,31 @@ Passed: Total 20, Failed 0, Errors 0, Passed 20
 | IntegrationSuite | 1 | Integration | Full pipeline with stubbed HTTP and concurrent threads |
 | EndToEndSuite | 2 | E2E | Real HTTP requests to example.com, real error isolation |
 
+### Live run — successful fetch
+
+```
+sbt "run https://www.scala-lang.org"
+
+Processing 1 URL(s)...
+
+URL: https://www.scala-lang.org
+  - https://www.scala-lang.org/blog/2026/03/02/sbt2-compat.html
+  - https://www.scala-lang.org/
+  - https://docs.scala-lang.org
+  - https://www.scala-lang.org/download/
+  - https://scastie.scala-lang.org
+  - https://index.scala-lang.org
+  - https://www.scala-lang.org/community/
+  - https://www.scala-lang.org/governance/
+  - https://www.scala-lang.org/blog/
+  - https://www.scala-lang.org/download/3.8.2.html
+  - https://docs.scala-lang.org/getting-started.html
+  - https://docs.scala-lang.org/tour/tour-of-scala.html
+  ... (90+ links extracted)
+
+Done.
+```
+
 ### Live run — error isolation demo
 
 ```
