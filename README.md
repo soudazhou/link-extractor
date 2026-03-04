@@ -12,7 +12,7 @@ hyperlinks. Built in Scala 3 as a take-home technical assessment.
 Fair warning: I have roughly 10 years of Java experience but this is my first
 Scala project. If you ask me to explain the finer points of implicits or type-level
 programming, I'll probably pivot the conversation to `BlockingQueue` internals
-instead. That said, the design principles — concurrency, error isolation, clean
+instead :) That said, the design principles — concurrency, error isolation, clean
 separation of concerns, testability — are the same ones I'd apply in Java. The
 language is new; the engineering thinking is not.
 
@@ -60,7 +60,7 @@ live run evidence below.
 
 - [x] URLs fetched concurrently (bounded thread pool, default 4)
 - [x] Trimming oldest queue entries if queue size balloons (`--drop-oldest`)
-- [x] Comprehensive test coverage (17 tests across 6 suites, including E2E with real HTTP)
+- [x] Comprehensive test coverage (20 tests across 6 suites, including E2E with real HTTP)
 
 ---
 
@@ -75,7 +75,7 @@ live run evidence below.
 
 ```bash
 sbt compile    # compile
-sbt test       # run all 15 tests
+sbt test       # run all tests
 ```
 
 ### Run
@@ -153,7 +153,7 @@ CLI args / urls.txt
 
 ## Test Evidence
 
-### All 17 tests pass (clean build)
+### All 20 tests pass (clean build)
 
 ```
 sbt clean test
@@ -162,6 +162,7 @@ linkextractor.BoundedDroppingQueueSuite:
   + drops oldest entry when capacity is exceeded
   + works normally when under capacity
   + handles multiple overflows correctly
+  + handles concurrent puts from multiple threads without errors
 linkextractor.ConsumerSuite:
   + processes all items and stops on None
   + continues processing after a parse error
@@ -172,27 +173,29 @@ linkextractor.HtmlParserSuite:
   + handles malformed HTML gracefully
   + resolves empty href to base URL
   + preserves source URL in result
+  + includes javascript: and mailto: hrefs
 linkextractor.IntegrationSuite:
   + full pipeline: producer -> queue -> consumer
 linkextractor.ProducerSuite:
   + puts fetched results on queue and signals done with None
   + signals done even when all fetches fail
   + signals done immediately for empty URL list
+  + queues successful results and skips failures in mixed batch
 linkextractor.EndToEndSuite:
   + fetches real URLs and extracts links end-to-end
   + error isolation with real HTTP — bad URL doesn't affect good ones
 
-Passed: Total 17, Failed 0, Errors 0, Passed 17
+Passed: Total 20, Failed 0, Errors 0, Passed 20
 ```
 
 ### Test breakdown by suite
 
 | Suite | Tests | Category | What It Proves |
 |-------|-------|----------|----------------|
-| HtmlParserSuite | 6 | Unit | Link extraction, relative URL resolution, malformed HTML |
-| ProducerSuite | 3 | Unit | Queue population, error isolation, empty list |
+| HtmlParserSuite | 7 | Unit | Link extraction, relative URLs, malformed HTML, javascript:/mailto: hrefs |
+| ProducerSuite | 4 | Unit | Queue population, all-fail, empty list, partial failure (mixed batch) |
 | ConsumerSuite | 2 | Unit | Full consumption, error isolation on bad parse |
-| BoundedDroppingQueueSuite | 3 | Unit | Drop-oldest overflow, under-capacity, multiple overflows |
+| BoundedDroppingQueueSuite | 4 | Unit | Drop-oldest, under-capacity, multiple overflows, concurrent stress test |
 | IntegrationSuite | 1 | Integration | Full pipeline with stubbed HTTP and concurrent threads |
 | EndToEndSuite | 2 | E2E | Real HTTP requests to example.com, real error isolation |
 

@@ -79,13 +79,23 @@ class Producer(
         case Failure(e) =>
           // Error isolation: log and skip. Other URLs are unaffected.
           // We write to stderr so it doesn't interleave with stdout output.
-          System.err.println(s"[Producer] Failed to fetch $url: ${e.getMessage}")
+          // Use Option(getMessage) to avoid printing "null" when the exception
+          // has no message (e.g., some IOException subclasses). Fall back to
+          // the exception class name so the output is always informative.
+          val msg = Option(e.getMessage).getOrElse(e.getClass.getSimpleName)
+          System.err.println(s"[Producer] Failed to fetch $url: $msg")
           latch.countDown()
 
     // Wait for all Futures to complete (success or failure), then send poison pill.
     // Timeout is generous — 5 minutes total for all URLs.
-    latch.await(5, TimeUnit.MINUTES)
-    queue.put(None)  // tells the consumer: "I'm done, no more items coming"
+    // latch.await() returns false if the timeout elapsed before all countdowns
+    // reached zero. In that case, some futures are still running — we log a
+    // warning and force-shutdown the pool to prevent leaked threads.
+    val allCompleted = latch.await(5, TimeUnit.MINUTES)
+    if !allCompleted then
+      System.err.println(s"[Producer] Timed out waiting for all fetches to complete")
+      executor.shutdownNow()  // interrupt still-running futures
+    else
+      executor.shutdown()     // graceful shutdown — all futures already done
 
-    // Clean shutdown of the thread pool. No new tasks will be submitted.
-    executor.shutdown()
+    queue.put(None)  // tells the consumer: "I'm done, no more items coming"
