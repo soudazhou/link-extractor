@@ -1,0 +1,8 @@
+# Sample URLs for testing the link extractor
+# Lines starting with # are ignored, as are blank lines
+
+https://www.scala-lang.org
+https://news.ycombinator.com
+https://www.bbc.co.uk
+https://docs.scala-lang.org
+https://httpstat.us/404
