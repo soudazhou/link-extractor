@@ -1,7 +1,7 @@
 package linkextractor
 
-import linkextractor.model.FetchResult
-import java.util.concurrent.{BlockingQueue, CountDownLatch, Executors, TimeUnit}
+import linkextractor.model.{FetchResult, ItemQueue}
+import java.util.concurrent.{CountDownLatch, Executors, TimeUnit}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
@@ -40,7 +40,7 @@ import scala.util.{Failure, Success}
 
 class Producer(
     urls: List[String],
-    queue: BlockingQueue[Option[FetchResult]],
+    queue: ItemQueue[Option[FetchResult]],
     fetcher: HttpFetcher,
     concurrency: Int = 4  // default 4 parallel fetches — conservative, avoids overwhelming servers
 ):

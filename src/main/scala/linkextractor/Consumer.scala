@@ -1,7 +1,6 @@
 package linkextractor
 
-import linkextractor.model.{ExtractedLinks, FetchResult}
-import java.util.concurrent.BlockingQueue
+import linkextractor.model.{ExtractedLinks, FetchResult, ItemQueue}
 import scala.annotation.tailrec
 import scala.util.{Try, Success, Failure}
 
@@ -36,7 +35,7 @@ import scala.util.{Try, Success, Failure}
 // ---------------------------------------------------------------------------
 
 class Consumer(
-    queue: BlockingQueue[Option[FetchResult]],
+    queue: ItemQueue[Option[FetchResult]],
     parser: HtmlParser,
     output: ExtractedLinks => Unit = Consumer.printToStdout
 ):

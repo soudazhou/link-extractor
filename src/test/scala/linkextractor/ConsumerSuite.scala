@@ -1,6 +1,6 @@
 package linkextractor
 
-import linkextractor.model.{ExtractedLinks, FetchResult}
+import linkextractor.model.{ExtractedLinks, FetchResult, ItemQueue}
 import java.util.concurrent.LinkedBlockingQueue
 
 // ---------------------------------------------------------------------------
@@ -15,12 +15,20 @@ import java.util.concurrent.LinkedBlockingQueue
 
 class ConsumerSuite extends munit.FunSuite:
 
+  // Helper: create an ItemQueue pre-populated with items for consumer tests.
+  // Returns the ItemQueue wrapper (for passing to Consumer).
+  private def makeQueue(items: Option[FetchResult]*): ItemQueue[Option[FetchResult]] =
+    val underlying = LinkedBlockingQueue[Option[FetchResult]](items.size + 1)
+    items.foreach(underlying.put)
+    ItemQueue.fromBlockingQueue(underlying)
+
   // --- Happy path: processes all items until poison pill ---
   test("processes all items and stops on None") {
-    val queue = LinkedBlockingQueue[Option[FetchResult]](10)
-    queue.put(Some(FetchResult("http://a.com", "<a href='http://link1.com'>L</a>")))
-    queue.put(Some(FetchResult("http://b.com", "<a href='http://link2.com'>L</a>")))
-    queue.put(None)  // poison pill
+    val queue = makeQueue(
+      Some(FetchResult("http://a.com", "<a href='http://link1.com'>L</a>")),
+      Some(FetchResult("http://b.com", "<a href='http://link2.com'>L</a>")),
+      None  // poison pill
+    )
 
     // Capture output instead of printing to stdout
     var results = List.empty[ExtractedLinks]
@@ -38,10 +46,11 @@ class ConsumerSuite extends munit.FunSuite:
   // The consumer wraps each parse in Try. If one page's HTML causes an error,
   // the consumer logs it and continues with the next page (R8).
   test("continues processing after a parse error") {
-    val queue = LinkedBlockingQueue[Option[FetchResult]](10)
-    queue.put(Some(FetchResult("http://bad.com", "bad html")))
-    queue.put(Some(FetchResult("http://good.com", "<a href='http://ok.com'>OK</a>")))
-    queue.put(None)
+    val queue = makeQueue(
+      Some(FetchResult("http://bad.com", "bad html")),
+      Some(FetchResult("http://good.com", "<a href='http://ok.com'>OK</a>")),
+      None
+    )
 
     // Parser that throws on the first call, succeeds on subsequent calls
     var callCount = 0
