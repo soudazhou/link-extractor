@@ -3,8 +3,8 @@ package linkextractor
 // ---------------------------------------------------------------------------
 // Unit tests for BoundedDroppingQueue.
 //
-// Verifies the drop-oldest behaviour and normal operation under capacity.
-// No threading needed — these are synchronous put/take sequences.
+// Verifies the drop-oldest behaviour, normal operation under capacity,
+// and thread safety under concurrent access.
 //
 // See: docs/TESTING.md and test/SPEC.md
 // ---------------------------------------------------------------------------
@@ -49,4 +49,37 @@ class BoundedDroppingQueueSuite extends munit.FunSuite:
 
     assertEquals(queue.take(), 3)
     assertEquals(queue.take(), 4)
+  }
+
+  // --- Concurrent stress test: multiple threads putting simultaneously ---
+  // The synchronized block in put() should prevent race conditions where two
+  // threads both see the queue as full, both poll, and both offer — causing
+  // unnecessary double-drops. This test hammers the queue from multiple
+  // threads and verifies no exceptions are thrown and the final state is sane.
+  test("handles concurrent puts from multiple threads without errors") {
+    val queue = BoundedDroppingQueue[Int](10)
+    val numThreads = 4
+    val putsPerThread = 100
+
+    // Launch multiple threads that all put concurrently
+    val threads = (0 until numThreads).map: threadId =>
+      val t = Thread: () =>
+        (0 until putsPerThread).foreach: i =>
+          queue.put(threadId * putsPerThread + i)
+      t.start()
+      t
+
+    // Wait for all threads to finish
+    threads.foreach(_.join(5_000))
+
+    // Drain the queue — should have at most `capacity` items (10), since
+    // the queue drops oldest on overflow. Total puts = 400, capacity = 10.
+    var count = 0
+    while !queue.isEmpty do
+      queue.take()
+      count += 1
+
+    // We can't predict exact count due to timing, but it must be <= capacity
+    assert(count <= 10, s"Queue should have at most 10 items, got $count")
+    assert(count > 0, "Queue should have at least some items")
   }

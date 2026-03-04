@@ -13,10 +13,10 @@ Test each component in isolation with known inputs.
 
 | Suite | Component | Tests | What It Proves |
 |-------|-----------|-------|----------------|
-| `HtmlParserSuite` | HtmlParser | 6 | Correct link extraction, relative URL resolution, malformed HTML handling |
-| `ProducerSuite` | Producer | 3 | Queue population, error isolation, empty list handling |
+| `HtmlParserSuite` | HtmlParser | 7 | Link extraction, relative URLs, malformed HTML, javascript:/mailto: hrefs |
+| `ProducerSuite` | Producer | 4 | Queue population, all-fail, empty list, partial failure (mixed batch) |
 | `ConsumerSuite` | Consumer | 2 | Full queue consumption, error isolation on bad parse |
-| `BoundedDroppingQueueSuite` | BoundedDroppingQueue | 3 | Oldest-drop behaviour, multiple overflows, normal operation |
+| `BoundedDroppingQueueSuite` | BoundedDroppingQueue | 4 | Oldest-drop, multiple overflows, normal operation, concurrent stress |
 
 ### Integration Tests
 
@@ -62,13 +62,14 @@ sbt "testOnly linkextractor.HtmlParserSuite"
 
 ## Test Evidence
 
-All 17 tests pass on clean build (`sbt clean test`):
+All 20 tests pass on clean build (`sbt clean test`):
 
 ```
 linkextractor.BoundedDroppingQueueSuite:
   + drops oldest entry when capacity is exceeded
   + works normally when under capacity
   + handles multiple overflows correctly
+  + handles concurrent puts from multiple threads without errors
 linkextractor.ConsumerSuite:
   + processes all items and stops on None
   + continues processing after a parse error
@@ -79,15 +80,17 @@ linkextractor.HtmlParserSuite:
   + handles malformed HTML gracefully
   + resolves empty href to base URL
   + preserves source URL in result
+  + includes javascript: and mailto: hrefs
 linkextractor.IntegrationSuite:
   + full pipeline: producer -> queue -> consumer
 linkextractor.ProducerSuite:
   + puts fetched results on queue and signals done with None
   + signals done even when all fetches fail
   + signals done immediately for empty URL list
+  + queues successful results and skips failures in mixed batch
 linkextractor.EndToEndSuite:
   + fetches real URLs and extracts links end-to-end
   + error isolation with real HTTP — bad URL doesn't affect good ones
 
-Passed: Total 17, Failed 0, Errors 0, Passed 17
+Passed: Total 20, Failed 0, Errors 0, Passed 20
 ```

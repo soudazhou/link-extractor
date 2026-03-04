@@ -88,3 +88,22 @@ class HtmlParserSuite extends munit.FunSuite:
 
     assertEquals(result.url, "https://source.com")
   }
+
+  // --- javascript: and mailto: hrefs are technically valid href values ---
+  // jsoup includes them via abs:href. We verify they come through as-is —
+  // filtering them out would be a consumer/output concern, not a parser concern.
+  // This test documents the behaviour rather than asserting a preference.
+  test("includes javascript: and mailto: hrefs") {
+    val html = """
+      <a href="javascript:void(0)">JS</a>
+      <a href="mailto:test@example.com">Email</a>
+      <a href="https://real.com">Real</a>
+    """
+
+    val result = parser.extractLinks("https://example.com", html)
+
+    // All three are present — jsoup treats them as valid href values
+    assert(result.links.contains("https://real.com"))
+    assert(result.links.exists(_.startsWith("javascript:")))
+    assert(result.links.exists(_.startsWith("mailto:")))
+  }

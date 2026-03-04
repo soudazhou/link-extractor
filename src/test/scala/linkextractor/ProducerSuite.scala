@@ -69,3 +69,37 @@ class ProducerSuite extends munit.FunSuite:
 
     assertEquals(underlying.poll(), None, "Empty URL list should produce only poison pill")
   }
+
+  // --- Partial failure: some URLs succeed, some fail ---
+  // This is the most realistic scenario. The producer should queue results
+  // for successful fetches, skip failures, and still send the poison pill.
+  test("queues successful results and skips failures in mixed batch") {
+    val (queue, underlying) = makeQueue()
+
+    // Fetcher that fails for URLs containing "bad", succeeds for others
+    val mixedFetcher = new HttpFetcher():
+      override def fetch(url: String): FetchResult =
+        if url.contains("bad") then throw RuntimeException(s"simulated failure for $url")
+        else FetchResult(url, s"<html>$url</html>")
+
+    val producer = Producer(
+      List("http://good1.com", "http://bad.com", "http://good2.com"),
+      queue,
+      mixedFetcher
+    )
+    producer.run()
+
+    // Drain the queue: should have 2 results + 1 poison pill
+    var results = List.empty[Option[FetchResult]]
+    var item = underlying.poll()
+    while item != null do
+      results = results :+ item
+      item = underlying.poll()
+
+    // 2 successful fetches + 1 None poison pill = 3 items
+    val successes = results.count(_.isDefined)
+    val poisonPills = results.count(_.isEmpty)
+    assertEquals(successes, 2, "Should have 2 successful results")
+    assertEquals(poisonPills, 1, "Should have exactly 1 poison pill")
+    assertEquals(results.last, None, "Poison pill should be last")
+  }
